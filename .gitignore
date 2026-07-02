@@ -141,3 +141,15 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Obsidian local/plugin files
+.obsidian/
+data.json
+
+# Build output
+main.js
+*.map
