@@ -598,16 +598,16 @@ export default class ImageAutoRenamePlugin extends Plugin {
 		this.clearFilenameDisplayMode();
 
 		if (this.settings.filenameDisplayMode === "hide") {
-			document.body.classList.add(FILENAME_HIDE_CLASS);
+			activeDocument.body.classList.add(FILENAME_HIDE_CLASS);
 		}
 
 		if (this.settings.filenameDisplayMode === "hover") {
-			document.body.classList.add(FILENAME_HOVER_CLASS);
+			activeDocument.body.classList.add(FILENAME_HOVER_CLASS);
 		}
 	}
 
 	private clearFilenameDisplayMode() {
-		document.body.classList.remove(FILENAME_HIDE_CLASS, FILENAME_HOVER_CLASS);
+		activeDocument.body.classList.remove(FILENAME_HIDE_CLASS, FILENAME_HOVER_CLASS);
 	}
 }
 
