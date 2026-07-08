@@ -24,9 +24,9 @@ Current version: `1.0.3`
 - Create a default `Files.base` file with filters for non-PNG and non-Base files.
 - Show default Base properties for name, extension, tags, aliases, backlinks, and modified time.
 - Add multiple Base name style rules by file extension.
-- Style matching Base name cells with a custom color and bold font weight.
+- Style matching Base name cells with a custom color and bold font weight, including nested text and links inside the cell.
 - Choose Base style colors with either hex input or the color picker.
-- Optionally reveal the active file in the file explorer when switching files.
+- Optionally reveal the active file in the file explorer when switching files. When disabled, the plugin also tries to disable Obsidian File Explorer auto-reveal.
 
 ## Default Base
 
@@ -59,6 +59,8 @@ Upload these supported files to GitHub Releases:
 - `main.js`
 - `manifest.json`
 - `styles.css`
+
+For artifact attestations, create or push the release tag and let the GitHub Actions release workflow build and upload these assets. Assets uploaded manually from a local machine usually do not have GitHub artifact attestations.
 
 Do not upload `node_modules/`. Dependencies can be restored locally with `npm install`.
 

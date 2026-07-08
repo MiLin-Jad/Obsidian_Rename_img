@@ -25,7 +25,10 @@ body.image-auto-rename-filename-hover .canvas-node:hover .canvas-node-label {
 	display: none;
 }
 
-.image-auto-rename-base-name-styled {
+.workspace .image-auto-rename-base-name-styled,
+.workspace .image-auto-rename-base-name-styled a,
+.workspace .image-auto-rename-base-name-styled span,
+.workspace .image-auto-rename-base-name-styled div {
 	color: var(--image-auto-rename-base-name-color);
 	font-weight: 700;
 }

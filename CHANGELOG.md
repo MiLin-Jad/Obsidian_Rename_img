@@ -10,6 +10,12 @@
 - Removed vault-wide file enumeration for Base style extension options.
 - Rewrote README content in English for plugin directory review.
 - Clarified that Baseline is a personal theme recommendation and must be installed separately.
+- Added a GitHub Actions release workflow that builds, attests, and uploads supported release assets.
+- Replaced deprecated workspace leaf access with `getLeaf(false)`.
+- Removed an unnecessary `activeDocument` type assertion.
+- Avoided internal calls to the deprecated setting tab `display()` method.
+- Fixed Base name style color rules not applying reliably in Bases views.
+- Fixed the active-file reveal toggle so disabling it also tries to disable Obsidian File Explorer auto-reveal.
 
 ## 1.0.2
 

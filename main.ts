@@ -37,6 +37,21 @@ interface ImageAutoRenameSettings {
 	baseNameStyleRules: BaseNameStyleRule[];
 }
 
+interface FileExplorerAutoRevealOptions {
+	autoReveal?: boolean;
+	autoRevealActiveFile?: boolean;
+}
+
+interface FileExplorerInstance {
+	autoReveal?: boolean;
+	options?: FileExplorerAutoRevealOptions;
+	saveOptions?: () => void | Promise<void>;
+}
+
+interface InternalPlugins {
+	plugins?: Record<string, { instance?: FileExplorerInstance } | undefined>;
+}
+
 type LegacyImageAutoRenameSettings = Partial<ImageAutoRenameSettings> & {
 	baseStyledExtension?: string;
 	baseStyledNameColor?: string;
@@ -106,6 +121,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+		this.syncFileExplorerAutoRevealSetting();
 		this.applyFilenameDisplayCss();
 		this.applyFileListCss();
 		this.startBaseStyleObserver();
@@ -592,14 +608,14 @@ export default class ImageAutoRenamePlugin extends Plugin {
 	private async refreshOpenFileView(file: TFile) {
 		const viewType = file.extension === "canvas" ? "canvas" : "markdown";
 		const leaves = this.app.workspace.getLeavesOfType(viewType);
-		const activeLeaf = this.app.workspace.activeLeaf;
+		const currentLeaf = this.app.workspace.getLeaf(false);
 
 		for (const leaf of leaves) {
 			const leafFile = "file" in leaf.view ? leaf.view.file : null;
 
 			if (leafFile instanceof TFile && leafFile.path === file.path) {
 				await leaf.openFile(file, {
-					active: leaf === activeLeaf,
+					active: leaf === currentLeaf,
 				});
 			}
 		}
@@ -897,6 +913,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 
 	queueRevealActiveFile() {
 		this.clearAutoRevealTimeout();
+		this.syncFileExplorerAutoRevealSetting();
 
 		if (!this.settings.autoRevealActiveFile) {
 			return;
@@ -934,8 +951,43 @@ export default class ImageAutoRenamePlugin extends Plugin {
 		commands.executeCommandById("file-explorer:reveal-active-file");
 	}
 
+	syncFileExplorerAutoRevealSetting() {
+		const fileExplorer = this.getFileExplorerInstance();
+
+		if (!fileExplorer) {
+			return;
+		}
+
+		let changed = false;
+
+		if (typeof fileExplorer.autoReveal === "boolean" && fileExplorer.autoReveal !== this.settings.autoRevealActiveFile) {
+			fileExplorer.autoReveal = this.settings.autoRevealActiveFile;
+			changed = true;
+		}
+
+		if (fileExplorer.options) {
+			for (const key of ["autoReveal", "autoRevealActiveFile"] as const) {
+				if (typeof fileExplorer.options[key] === "boolean" && fileExplorer.options[key] !== this.settings.autoRevealActiveFile) {
+					fileExplorer.options[key] = this.settings.autoRevealActiveFile;
+					changed = true;
+				}
+			}
+		}
+
+		if (changed && fileExplorer.saveOptions) {
+			void Promise.resolve(fileExplorer.saveOptions()).catch((error) => {
+				console.error("Failed to save File Explorer auto reveal setting:", error);
+			});
+		}
+	}
+
+	private getFileExplorerInstance() {
+		const appWithInternalPlugins = this.app as App & { internalPlugins?: InternalPlugins };
+		return appWithInternalPlugins.internalPlugins?.plugins?.["file-explorer"]?.instance ?? null;
+	}
+
 	private getActiveDocument(): Document {
-		return activeDocument as Document;
+		return activeDocument;
 	}
 
 	applyFilenameDisplayCss() {
@@ -1101,8 +1153,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 				continue;
 			}
 
-			const rowExtension = this.normalizeExtensionSetting(extensionCell.textContent ?? "");
-			const rule = ruleByExtension.get(rowExtension);
+			const rule = this.getBaseNameStyleRuleForCell(extensionCell, ruleByExtension);
 
 			if (!rule) {
 				continue;
@@ -1123,7 +1174,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 	}
 
 	private getBaseRows() {
-		const cellSelector = "[data-property='file.ext'], [data-property='file.extension'], [data-property='file.name'], [data-property='file.path']";
+		const cellSelector = this.getBasePropertySelector(["file.ext", "file.extension", "file.name", "file.path"]);
 		const rows = new Set<HTMLElement>();
 
 		for (const cell of Array.from(this.getActiveDocument().querySelectorAll<HTMLElement>(cellSelector))) {
@@ -1138,13 +1189,61 @@ export default class ImageAutoRenamePlugin extends Plugin {
 	}
 
 	private getBaseCell(row: HTMLElement, properties: string[]) {
-		const selector = properties.map((property) => `[data-property='${property}']`).join(", ");
+		const selector = this.getBasePropertySelector(properties);
 		return row.querySelector<HTMLElement>(selector);
+	}
+
+	private getBasePropertySelector(properties: string[]) {
+		const attributes = ["data-property", "data-property-key", "data-property-name", "data-column-id", "data-column-key", "aria-label"];
+		return properties
+			.flatMap((property) => attributes.map((attribute) => `[${attribute}='${property}']`))
+			.join(", ");
+	}
+
+	private getBaseNameStyleRuleForCell(extensionCell: HTMLElement, ruleByExtension: Map<string, BaseNameStyleRule>) {
+		const rawExtension = extensionCell.textContent ?? "";
+		const normalizedExtension = this.normalizeExtensionSetting(rawExtension);
+		const directRule = ruleByExtension.get(normalizedExtension);
+
+		if (directRule) {
+			return directRule;
+		}
+
+		for (const token of this.getExtensionTokens(rawExtension)) {
+			const rule = ruleByExtension.get(token);
+
+			if (rule) {
+				return rule;
+			}
+		}
+
+		return null;
+	}
+
+	private getExtensionTokens(value: string) {
+		const normalizedValue = value.toLowerCase();
+		const tokens = new Set<string>();
+
+		for (const token of normalizedValue.split(/[^a-z0-9]+/i)) {
+			const extension = this.normalizeExtensionSetting(token);
+
+			if (extension) {
+				tokens.add(extension);
+			}
+		}
+
+		const fileExtensionMatch = normalizedValue.match(/\.([a-z0-9]+)(?:\s|$)/i);
+
+		if (fileExtensionMatch?.[1]) {
+			tokens.add(this.normalizeExtensionSetting(fileExtensionMatch[1]));
+		}
+
+		return [...tokens];
 	}
 
 	private styleBaseNameCell(nameCell: HTMLElement, color: string) {
 		const targets = nameCell.querySelectorAll<HTMLElement>("a, span, div");
-		const elements = targets.length > 0 ? Array.from(targets) : [nameCell];
+		const elements = [nameCell, ...Array.from(targets)];
 
 		for (const element of elements) {
 			element.classList.add("image-auto-rename-base-name-styled");
@@ -1169,6 +1268,10 @@ class ImageAutoRenameSettingTab extends PluginSettingTab {
 	}
 
 	display() {
+		this.render();
+	}
+
+	private render() {
 		const { containerEl } = this;
 
 		containerEl.empty();
@@ -1224,6 +1327,7 @@ class ImageAutoRenameSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.autoRevealActiveFile = value;
 						await this.plugin.saveSettings();
+						this.plugin.syncFileExplorerAutoRevealSetting();
 
 						if (value) {
 							this.plugin.queueRevealActiveFile();
@@ -1259,7 +1363,7 @@ class ImageAutoRenameSettingTab extends PluginSettingTab {
 						});
 						await this.plugin.saveSettings();
 						this.plugin.refreshBaseNameStyles();
-						this.display();
+						this.render();
 					})
 			);
 
@@ -1330,7 +1434,7 @@ class ImageAutoRenameSettingTab extends PluginSettingTab {
 					};
 					await this.plugin.saveSettings();
 					this.plugin.refreshBaseNameStyles();
-					this.display();
+					this.render();
 				});
 			})
 			.addText((text) =>
@@ -1363,7 +1467,7 @@ class ImageAutoRenameSettingTab extends PluginSettingTab {
 						this.plugin.settings.baseNameStyleRules.splice(index, 1);
 						await this.plugin.saveSettings();
 						this.plugin.refreshBaseNameStyles();
-						this.display();
+						this.render();
 					})
 			);
 	}
