@@ -1,8 +1,12 @@
 # Changelog
 
+## 1.1.2
+
+- Changed the plugin display name to `Rename Img` to meet Obsidian plugin directory naming requirements.
+
 ## 1.1.1
 
-- Renamed the plugin display name to `Rename_img`.
+- Renamed the plugin display name to `Rename Img`.
 - Added English and Chinese interface language switching.
 
 ## 1.0.4

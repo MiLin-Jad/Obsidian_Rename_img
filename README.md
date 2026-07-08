@@ -1,10 +1,10 @@
-# Rename_img
+# Rename Img
 
-Rename_img is an Obsidian plugin for keeping pasted image workflows tidy. It can rename newly created or pasted images, repair image links after renaming, hide PNG files from the file explorer, and add small helpers for Obsidian Bases.
+Rename Img is an Obsidian plugin for keeping pasted image workflows tidy. It can rename newly created or pasted images, repair image links after renaming, hide PNG files from the file explorer, and add small helpers for Obsidian Bases.
 
 ## Version
 
-Current version: `1.1.1`
+Current version: `1.1.2`
 
 ## Default Settings
 

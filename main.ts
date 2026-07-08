@@ -97,7 +97,7 @@ views:
 
 const UI_TEXT = {
 	en: {
-		pageTitle: "Rename_img",
+		pageTitle: "Rename Img",
 		languageName: "Language",
 		languageDesc: "Choose the display language for this plugin.",
 		languageEnglish: "English",
@@ -131,7 +131,7 @@ const UI_TEXT = {
 		renameFailedNotice: "Failed to rename images in active file. See console for details.",
 	},
 	zh: {
-		pageTitle: "Rename_img",
+		pageTitle: "Rename Img",
 		languageName: "语言",
 		languageDesc: "选择这个插件界面的显示语言。",
 		languageEnglish: "English",
