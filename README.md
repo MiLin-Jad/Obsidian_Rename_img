@@ -1,8 +1,6 @@
 # Image Auto Rename
 
-  
-
-An Obsidian plugin that automatically renames newly created or pasted images, along with small tools for managing file lists, Bases, and themes.
+Image Auto Rename is an Obsidian plugin for keeping pasted image workflows tidy. It can rename newly created or pasted images, repair image links after renaming, hide PNG files from the file explorer, and add small helpers for Obsidian Bases.
 
 ## Version
 
@@ -10,61 +8,61 @@ Current version: `1.0.2`
 
 ## Default Settings
 
-- `Image filename display`: `Show on hover`  
+- `Image filename display`: `Show on hover`
+- `Hide PNG files in file list`: Enabled
+- `Reveal active file in file list`: Disabled
+- `Base style rule 1`: `canvas` / `#f9a8d4`
+- `Base style rule 2`: `md` / `#3f3f46`
 
-- `Hide PNG files in file list`: Enabled  
+## Features
 
-- `Use Baseline theme`: Enabled  
+- Automatically rename newly created or pasted PNG, JPG, and JPEG images.
+- Rename images with the current file name plus a six-digit sequence number.
+- Repair Markdown and Canvas image references after automatic renaming.
+- Hide PNG files from Obsidian's file explorer visually.
+- Control Canvas image filename labels: show, hide, or show on hover.
+- Create a default `Files.base` file with filters for non-PNG and non-Base files.
+- Show default Base properties for name, extension, tags, aliases, backlinks, and modified time.
+- Add multiple Base name style rules by file extension.
+- Style matching Base name cells with a custom color and bold font weight.
+- Choose Base style colors with either hex input or the color picker.
+- Optionally reveal the active file in the file explorer when switching files.
 
-- `Auto reveal active file in file list`: Disabled  
+## Default Base
 
-- `Add Base name style rule` Default rules:  
+The `Create default base` command creates a `Files.base` file with these filters:
 
-- `canvas`: `#f9a8d4`  
+```text
+file.ext is not png
+file.ext is not base
+```
 
-- `md`: `#3f3f46`
-
-## Main Features
-
-- Automatically rename images when creating, pasting, or within the current file.  
-
-- After pasting and renaming images, automatically update image references in Markdown and Canvas to reduce occasional "image not found" issues.  
-
-- Hide `png` files from the file list.  
-
-- Control how Canvas displays image filenames: show always, hide, or show on hover.  
-
-- Enable or disable "auto-scroll file list to current file."  
-
-- Create a default `Files.base` with built-in rules: - `file.ext is not png`
-
-- `file.ext is not base`
-
-- Default Base attributes include:
+The default visible properties are:
 
 - Name
+- Extension
+- Tags
+- Aliases
+- File backlinks
+- Modified time
 
-- Extension - tags
+## Theme Note
 
-- aliases
+This plugin does not bundle a full Obsidian theme. Obsidian community plugin releases only download supported plugin assets, so theme files should be installed separately through Obsidian's theme system.
 
-- File backlinks  
+## Release Assets
 
-- Modification time  
+Upload these supported files to GitHub Releases:
 
-- Multiple Base name style rules can be added, allowing you to set text color and boldness for names based on file extensions.  
+- `main.js`
+- `manifest.json`
+- `styles.css`
 
-- Base name style colors support both hexadecimal input and color picker.  
+Do not upload `node_modules/`. Dependencies can be restored locally with `npm install`.
 
-- After plugin loading, it will attempt to install and enable the Baseline theme from `baseline-theme.css` and `baseline-manifest.json` in the plugin directory.
-
-
-
-
-## Building
+## Build
 
 ```bash
-
+npm install
 npm run build
-
 ```

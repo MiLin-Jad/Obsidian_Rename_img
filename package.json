@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-image-auto-rename",
 	"version": "1.0.2",
-	"description": "Obsidian plugin for image auto rename, file list cleanup, Bases defaults, and Baseline theme setup.",
+	"description": "Obsidian plugin for image auto rename, file list cleanup, and Bases helpers.",
 	"main": "main.js",
 	"scripts": {
 		"build": "node build.js --prod",
@@ -17,7 +17,6 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^20.11.30",
-		"builtin-modules": "^3.3.0",
 		"esbuild": "^0.28.1",
 		"obsidian": "^1.5.12",
 		"typescript": "^5.4.2"

@@ -1,21 +1,31 @@
-body.image-auto-rename-filenames-hidden .canvas-node-label {
-	display: none !important;
+body.image-auto-rename-filename-hide .canvas-node-label {
+	display: none;
 }
 
-body.image-auto-rename-filenames-hover .canvas-node {
+body.image-auto-rename-filename-hover .canvas-node {
 	border-radius: 8px;
 	border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-body.image-auto-rename-filenames-hover .canvas-node:hover {
-	border: 1px solid rgba(0, 150, 255, 0.6);
+body.image-auto-rename-filename-hover .canvas-node:hover {
+	border-color: rgba(0, 150, 255, 0.6);
 }
 
-body.image-auto-rename-filenames-hover .canvas-node-label {
+body.image-auto-rename-filename-hover .canvas-node-label {
 	opacity: 0;
 	transition: opacity 0.2s;
 }
 
-body.image-auto-rename-filenames-hover .canvas-node:hover .canvas-node-label {
+body.image-auto-rename-filename-hover .canvas-node:hover .canvas-node-label {
 	opacity: 1;
+}
+
+.image-auto-rename-hidden-file,
+.image-auto-rename-hidden-file-container {
+	display: none;
+}
+
+.image-auto-rename-base-name-styled {
+	color: var(--image-auto-rename-base-name-color);
+	font-weight: 700;
 }

@@ -31,7 +31,6 @@ interface BaseNameStyleRule {
 interface ImageAutoRenameSettings {
 	settingsVersion: number;
 	targetFolder: string;
-	useBaselineTheme: boolean;
 	filenameDisplayMode: FilenameDisplayMode;
 	hidePngInFileList: boolean;
 	autoRevealActiveFile: boolean;
@@ -46,7 +45,6 @@ type LegacyImageAutoRenameSettings = Partial<ImageAutoRenameSettings> & {
 const DEFAULT_SETTINGS: ImageAutoRenameSettings = {
 	settingsVersion: 3,
 	targetFolder: "",
-	useBaselineTheme: true,
 	filenameDisplayMode: "hover",
 	hidePngInFileList: true,
 	autoRevealActiveFile: false,
@@ -64,11 +62,6 @@ const DEFAULT_SETTINGS: ImageAutoRenameSettings = {
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg"]);
 const PROCESSED_NAME_PATTERN = /^.+_\d{6}$/;
-const BASELINE_THEME_NAME = "Baseline";
-const BUNDLED_BASELINE_THEME_FILES: Record<string, string> = {
-	"manifest.json": "baseline-manifest.json",
-	"theme.css": "baseline-theme.css",
-};
 const DEFAULT_BASE_NAME_STYLE_COLOR = "#3f3f46";
 const DEFAULT_BASE_FILE_NAME = "Files.base";
 const DEFAULT_BASE_CONTENT = `filters:
@@ -104,17 +97,15 @@ export default class ImageAutoRenamePlugin extends Plugin {
 	settings: ImageAutoRenameSettings;
 	private processingPaths = new Set<string>();
 	private renameQueue = Promise.resolve();
-	private styleEl: HTMLStyleElement | null = null;
-	private fileListStyleEl: HTMLStyleElement | null = null;
+	private fileListObserver: MutationObserver | null = null;
+	private hiddenFileListElements = new Set<HTMLElement>();
 	private baseStyleObserver: MutationObserver | null = null;
 	private baseStyleTimeout: number | null = null;
 	private baseStyleRetryTimeouts: number[] = [];
 	private autoRevealTimeout: number | null = null;
-	private missingBaselineThemeNotified = false;
 
 	async onload() {
 		await this.loadSettings();
-		void this.applyBaselineTheme();
 		this.applyFilenameDisplayCss();
 		this.applyFileListCss();
 		this.startBaseStyleObserver();
@@ -125,7 +116,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 			id: "create-default-base",
 			name: "Create default base",
 			callback: () => {
-				this.createDefaultBase();
+				void this.createDefaultBase();
 			},
 		});
 
@@ -156,19 +147,15 @@ export default class ImageAutoRenamePlugin extends Plugin {
 				})
 			);
 			this.scheduleBaseStyleRefresh();
-			void this.applyBaselineTheme();
-			window.setTimeout(() => {
-				void this.applyBaselineTheme();
-			}, 1000);
 		});
 	}
 
-	async onunload() {
+	onunload() {
 		this.removeFilenameDisplayCss();
 		this.removeFileListCss();
 		this.stopBaseStyleObserver();
 		this.clearAutoRevealTimeout();
-		await this.saveSettings();
+		void this.saveSettings();
 	}
 
 	private enqueueRename(file: TFile) {
@@ -533,7 +520,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 
 		for (const [index, imageFile] of imageFiles.entries()) {
 			const targetFolderPath = await this.getTargetFolderPath(imageFile);
-			const sequenceText = String(index + 1).padStart(6, "0");
+			const sequenceText = this.formatSequence(index + 1);
 			const targetPath = targetFolderPath
 				? `${targetFolderPath}/${projectName}_${sequenceText}.${imageFile.extension.toLowerCase()}`
 				: `${projectName}_${sequenceText}.${imageFile.extension.toLowerCase()}`;
@@ -641,7 +628,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 			let sequence = await this.getNextSequence(projectName, targetFolderPath, sourceFile);
 
 			do {
-				const sequenceText = String(sequence).padStart(6, "0");
+				const sequenceText = this.formatSequence(sequence);
 				const fileName = `${projectName}_${sequenceText}.${extension}`;
 				targetPath = targetFolderPath ? `${targetFolderPath}/${fileName}` : fileName;
 				sequence += 1;
@@ -668,6 +655,10 @@ export default class ImageAutoRenamePlugin extends Plugin {
 		}
 
 		return !PROCESSED_NAME_PATTERN.test(file.basename);
+	}
+
+	private formatSequence(sequence: number) {
+		return `000000${sequence}`.slice(-6);
 	}
 
 	private async getNextSequence(projectName: string, targetFolderPath: string, sourceFile?: TFile) {
@@ -837,7 +828,6 @@ export default class ImageAutoRenamePlugin extends Plugin {
 		return {
 			settingsVersion: DEFAULT_SETTINGS.settingsVersion,
 			targetFolder: settings?.targetFolder ?? DEFAULT_SETTINGS.targetFolder,
-			useBaselineTheme: typeof settings?.useBaselineTheme === "boolean" ? settings.useBaselineTheme : DEFAULT_SETTINGS.useBaselineTheme,
 			filenameDisplayMode: this.normalizeFilenameDisplayMode(filenameDisplayMode, isLegacySettings),
 			hidePngInFileList: isLegacySettings && hidePngInFileList === false ? DEFAULT_SETTINGS.hidePngInFileList : hidePngInFileList,
 			autoRevealActiveFile: typeof settings?.autoRevealActiveFile === "boolean" ? settings.autoRevealActiveFile : DEFAULT_SETTINGS.autoRevealActiveFile,
@@ -905,93 +895,6 @@ export default class ImageAutoRenamePlugin extends Plugin {
 		};
 	}
 
-	async applyBaselineTheme() {
-		if (!this.settings.useBaselineTheme) {
-			return;
-		}
-
-		await this.installBundledBaselineTheme();
-
-		if (!(await this.isBaselineThemeInstalled())) {
-			this.notifyMissingBaselineTheme();
-			return;
-		}
-
-		const customCss = (this.app as App & { customCss?: { setTheme?: (theme: string) => void | Promise<void> } }).customCss;
-
-		if (!customCss?.setTheme) {
-			console.warn("Cannot apply Baseline theme: Obsidian theme API is unavailable.");
-			return;
-		}
-
-		await customCss.setTheme(BASELINE_THEME_NAME);
-	}
-
-	private async isBaselineThemeInstalled() {
-		const themePath = this.getInstalledBaselineThemeFilePath("theme.css");
-		return await this.app.vault.adapter.exists(themePath);
-	}
-
-	private async installBundledBaselineTheme() {
-		const sourceThemeCssPath = this.getBundledBaselineThemeFilePath("theme.css");
-
-		if (!(await this.app.vault.adapter.exists(sourceThemeCssPath))) {
-			return;
-		}
-
-		const targetThemeFolder = this.getInstalledBaselineThemeFolderPath();
-		await this.ensureAdapterFolderExists(targetThemeFolder);
-
-		for (const fileName of ["manifest.json", "theme.css"]) {
-			const sourcePath = this.getBundledBaselineThemeFilePath(fileName);
-
-			if (!(await this.app.vault.adapter.exists(sourcePath))) {
-				continue;
-			}
-
-			const content = await this.app.vault.adapter.read(sourcePath);
-			await this.app.vault.adapter.write(this.getInstalledBaselineThemeFilePath(fileName), content);
-		}
-	}
-
-	private getBundledBaselineThemeFilePath(fileName: string) {
-		const pluginDir = this.manifest.dir ?? "";
-		const bundledFileName = BUNDLED_BASELINE_THEME_FILES[fileName] ?? fileName;
-		return normalizePath(pluginDir ? `${pluginDir}/${bundledFileName}` : bundledFileName);
-	}
-
-	private getInstalledBaselineThemeFolderPath() {
-		return normalizePath(`${this.app.vault.configDir}/themes/${BASELINE_THEME_NAME}`);
-	}
-
-	private getInstalledBaselineThemeFilePath(fileName: string) {
-		return normalizePath(`${this.getInstalledBaselineThemeFolderPath()}/${fileName}`);
-	}
-
-	private async ensureAdapterFolderExists(folderPath: string) {
-		const parts = folderPath.split("/");
-		let currentPath = "";
-
-		for (const part of parts) {
-			currentPath = currentPath ? `${currentPath}/${part}` : part;
-
-			if (await this.app.vault.adapter.exists(currentPath)) {
-				continue;
-			}
-
-			await this.app.vault.adapter.mkdir(currentPath);
-		}
-	}
-
-	private notifyMissingBaselineTheme() {
-		if (this.missingBaselineThemeNotified) {
-			return;
-		}
-
-		this.missingBaselineThemeNotified = true;
-		new Notice("Baseline theme files were not found. Keep baseline-theme.css and baseline-manifest.json beside this plugin's main.js, then reload this plugin.");
-	}
-
 	queueRevealActiveFile() {
 		this.clearAutoRevealTimeout();
 
@@ -1031,92 +934,91 @@ export default class ImageAutoRenamePlugin extends Plugin {
 		commands.executeCommandById("file-explorer:reveal-active-file");
 	}
 
+	private getActiveDocument(): Document {
+		return activeDocument as Document;
+	}
+
 	applyFilenameDisplayCss() {
 		this.removeFilenameDisplayCss();
 
-		if (this.settings.filenameDisplayMode === "show") {
-			return;
-		}
-
-		this.styleEl = document.createElement("style");
-		this.styleEl.id = "image-auto-rename-filename-display";
-		this.styleEl.textContent = this.getFilenameDisplayCss();
-		document.head.appendChild(this.styleEl);
+		const body = this.getActiveDocument().body;
+		body.classList.toggle("image-auto-rename-filename-hide", this.settings.filenameDisplayMode === "hide");
+		body.classList.toggle("image-auto-rename-filename-hover", this.settings.filenameDisplayMode === "hover");
 	}
 
 	private removeFilenameDisplayCss() {
-		this.styleEl?.remove();
-		this.styleEl = null;
-	}
-
-	private getFilenameDisplayCss() {
-		if (this.settings.filenameDisplayMode === "hide") {
-			return `
-.canvas-node-label {
-	display: none !important;
-}
-`;
-		}
-
-		return `
-.canvas-node {
-	border-radius: 8px;
-	border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.canvas-node:hover {
-	border: 1px solid rgba(0, 150, 255, 0.6);
-}
-
-.canvas-node-label {
-	opacity: 0;
-	transition: opacity 0.2s;
-}
-
-.canvas-node:hover .canvas-node-label {
-	opacity: 1;
-}
-`;
+		const body = this.getActiveDocument().body;
+		body.classList.remove("image-auto-rename-filename-hide", "image-auto-rename-filename-hover");
 	}
 
 	applyFileListCss() {
-		this.removeFileListCss();
+		if (!this.settings.hidePngInFileList) {
+			this.removeFileListCss();
+			return;
+		}
+
+		this.startFileListObserver();
+		this.refreshFileListVisibility();
+	}
+
+	private removeFileListCss() {
+		this.fileListObserver?.disconnect();
+		this.fileListObserver = null;
+		this.clearHiddenFileListElements();
+	}
+
+	private startFileListObserver() {
+		if (this.fileListObserver) {
+			return;
+		}
+
+		this.fileListObserver = new MutationObserver(() => {
+			this.refreshFileListVisibility();
+		});
+		this.fileListObserver.observe(this.getActiveDocument().body, {
+			childList: true,
+			subtree: true,
+		});
+	}
+
+	private refreshFileListVisibility() {
+		this.clearHiddenFileListElements();
 
 		if (!this.settings.hidePngInFileList) {
 			return;
 		}
 
-		this.fileListStyleEl = document.createElement("style");
-		this.fileListStyleEl.id = "image-auto-rename-file-list";
-		this.fileListStyleEl.textContent = `
-.nav-file:has(.nav-file-title[data-path$=".png" i]),
-.tree-item:has(> .tree-item-self[data-path$=".png" i]) {
-	display: none !important;
-}
+		const selector = ".nav-file-title[data-path], .tree-item-self[data-path]";
 
-.nav-file-title[data-path$=".png" i],
-.tree-item-self[data-path$=".png" i] {
-	display: none !important;
-}
-`;
-		document.head.appendChild(this.fileListStyleEl);
+		for (const element of Array.from(this.getActiveDocument().querySelectorAll<HTMLElement>(selector))) {
+			const path = element.getAttribute("data-path") ?? "";
+
+			if (!path.toLowerCase().endsWith(".png")) {
+				continue;
+			}
+
+			element.classList.add("image-auto-rename-hidden-file");
+			this.hiddenFileListElements.add(element);
+
+			const container = element.closest<HTMLElement>(".nav-file, .tree-item");
+
+			if (container) {
+				container.classList.add("image-auto-rename-hidden-file-container");
+				this.hiddenFileListElements.add(container);
+			}
+		}
 	}
 
-	private removeFileListCss() {
-		this.fileListStyleEl?.remove();
-		this.fileListStyleEl = null;
+	private clearHiddenFileListElements() {
+		for (const element of this.hiddenFileListElements) {
+			element.classList.remove("image-auto-rename-hidden-file", "image-auto-rename-hidden-file-container");
+		}
+
+		this.hiddenFileListElements.clear();
 	}
 
 	getAvailableBaseStyleExtensions() {
-		const extensions = new Set(["md", "pdf", "jpg", "jpeg", "png", "webp", "gif", "canvas", "base"]);
-
-		for (const file of this.app.vault.getFiles()) {
-			if (file.extension) {
-				extensions.add(this.normalizeExtensionSetting(file.extension));
-			}
-		}
-
-		return [...extensions].filter((extension) => extension.length > 0).sort((a, b) => a.localeCompare(b));
+		return ["base", "canvas", "gif", "jpeg", "jpg", "md", "pdf", "png", "webp"];
 	}
 
 	refreshBaseNameStyles() {
@@ -1152,7 +1054,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 		this.baseStyleObserver = new MutationObserver(() => {
 			this.queueApplyBaseNameStyles();
 		});
-		this.baseStyleObserver.observe(document.body, {
+		this.baseStyleObserver.observe(this.getActiveDocument().body, {
 			childList: true,
 			subtree: true,
 		});
@@ -1211,9 +1113,11 @@ export default class ImageAutoRenamePlugin extends Plugin {
 	}
 
 	private clearBaseNameStyles() {
-		for (const element of document.querySelectorAll<HTMLElement>("[data-image-auto-rename-base-name-style='true']")) {
-			element.style.removeProperty("color");
-			element.style.removeProperty("font-weight");
+		for (const element of Array.from(this.getActiveDocument().querySelectorAll<HTMLElement>("[data-image-auto-rename-base-name-style='true']"))) {
+			element.classList.remove("image-auto-rename-base-name-styled");
+			element.setCssProps({
+				"--image-auto-rename-base-name-color": "",
+			});
 			element.removeAttribute("data-image-auto-rename-base-name-style");
 		}
 	}
@@ -1222,7 +1126,7 @@ export default class ImageAutoRenamePlugin extends Plugin {
 		const cellSelector = "[data-property='file.ext'], [data-property='file.extension'], [data-property='file.name'], [data-property='file.path']";
 		const rows = new Set<HTMLElement>();
 
-		for (const cell of document.querySelectorAll<HTMLElement>(cellSelector)) {
+		for (const cell of Array.from(this.getActiveDocument().querySelectorAll<HTMLElement>(cellSelector))) {
 			const row = cell.closest<HTMLElement>(".bases-tr, .bases-table-row, tr, [role='row']");
 
 			if (row) {
@@ -1240,11 +1144,13 @@ export default class ImageAutoRenamePlugin extends Plugin {
 
 	private styleBaseNameCell(nameCell: HTMLElement, color: string) {
 		const targets = nameCell.querySelectorAll<HTMLElement>("a, span, div");
-		const elements = targets.length > 0 ? [...targets] : [nameCell];
+		const elements = targets.length > 0 ? Array.from(targets) : [nameCell];
 
 		for (const element of elements) {
-			element.style.color = color;
-			element.style.fontWeight = "700";
+			element.classList.add("image-auto-rename-base-name-styled");
+			element.setCssProps({
+				"--image-auto-rename-base-name-color": color,
+			});
 			element.setAttribute("data-image-auto-rename-base-name-style", "true");
 		}
 	}
@@ -1277,22 +1183,6 @@ class ImageAutoRenameSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.targetFolder = value.trim();
 						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Use Baseline theme")
-			.setDesc("Automatically install the bundled Baseline theme files and switch Obsidian to the Baseline theme when this plugin loads.")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.useBaselineTheme)
-					.onChange(async (value) => {
-						this.plugin.settings.useBaselineTheme = value;
-						await this.plugin.saveSettings();
-
-						if (value) {
-							await this.plugin.applyBaselineTheme();
-						}
 					})
 			);
 

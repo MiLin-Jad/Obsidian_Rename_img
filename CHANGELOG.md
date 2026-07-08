@@ -2,14 +2,14 @@
 
 ## 1.0.2
 
-- 新增安装后默认启用 Baseline 主题，并从插件目录根目录的 `baseline-theme.css` 和 `baseline-manifest.json` 自动安装主题。
-- 新增隐藏文件列表中 `png` 文件的设置，默认打开。
-- 新增 Canvas 图片文件名显示方式默认值：`Show on hover`。
-- 新增文件列表是否自动追随当前文件的开关，默认关闭。
-- 新增默认 `Files.base` 创建功能，内置排除 `png` 和 `base` 的规则。
-- 新增 Base 默认属性：名称、扩展名、tags、aliases、文件反向链接、修改时间。
-- 新增多条 Base 名称样式规则，支持按扩展名设置加粗和彩色名称。
-- 新增 Base 名称样式默认规则：`canvas #f9a8d4`、`md #3f3f46`。
-- 新增 Base 样式颜色的十六进制输入和颜色选择器。
-- 优化粘贴图片自动改名后的引用更新，降低偶发显示旧图片名导致图片未找到的问题。
-- 优化设置迁移，避免重启后新增默认设置丢失。
+- Added default PNG hiding in the file explorer.
+- Added default Canvas image filename display mode: `Show on hover`.
+- Added a setting to enable or disable revealing the active file in the file explorer.
+- Added default `Files.base` creation with filters for non-PNG and non-Base files.
+- Added default Base properties for name, extension, tags, aliases, backlinks, and modified time.
+- Added multiple Base name style rules by file extension.
+- Added default Base style rules: `canvas #f9a8d4` and `md #3f3f46`.
+- Added hex color input and color picker support for Base style rules.
+- Improved Markdown and Canvas reference repair after automatic image renaming.
+- Moved plugin UI styles into the supported `styles.css` file.
+- Removed bundled Baseline theme files from release assets because Obsidian does not download unsupported plugin release files.
