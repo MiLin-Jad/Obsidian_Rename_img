@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.3
+
+- Prepared the plugin for Obsidian community plugin review.
+- Removed unsupported bundled theme release assets.
+- Kept plugin styles in the supported `styles.css` file.
+- Removed dynamic style element creation.
+- Removed direct static style assignments for Base name styling.
+- Removed vault-wide file enumeration for Base style extension options.
+- Rewrote README content in English for plugin directory review.
+- Clarified that Baseline is a personal theme recommendation and must be installed separately.
+
 ## 1.0.2
 
 - Added default PNG hiding in the file explorer.

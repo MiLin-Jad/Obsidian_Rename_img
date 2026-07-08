@@ -4,7 +4,7 @@ Image Auto Rename is an Obsidian plugin for keeping pasted image workflows tidy.
 
 ## Version
 
-Current version: `1.0.2`
+Current version: `1.0.3`
 
 ## Default Settings
 
@@ -46,9 +46,11 @@ The default visible properties are:
 - File backlinks
 - Modified time
 
-## Theme Note
+## Personal Theme Recommendation
 
-This plugin does not bundle a full Obsidian theme. Obsidian community plugin releases only download supported plugin assets, so theme files should be installed separately through Obsidian's theme system.
+Baseline is my personal recommended Obsidian theme for this workflow. It is not bundled with this plugin, and the plugin does not download, install, or switch to Baseline automatically.
+
+If you want the same visual style, install the Baseline theme separately through Obsidian's theme system. Obsidian community plugin releases only download supported plugin assets, so full theme files should stay outside this plugin release.
 
 ## Release Assets
 
